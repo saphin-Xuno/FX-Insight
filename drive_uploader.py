@@ -66,7 +66,8 @@ def upload_to_drive() -> None:
         media = MediaFileUpload(EXCEL_FILE, mimetype=MIME_XLSX, resumable=False)
         existing_id = _find_existing_file(service, folder_id)
 
-       if existing_id:
+        if existing_id:
+            # Update existing file in-place (keeps sharing settings and links stable)
             service.files().update(
                 fileId=existing_id,
                 media_body=media,
@@ -74,12 +75,12 @@ def upload_to_drive() -> None:
             ).execute()
             print(f"  OK Drive: updated existing file (id={existing_id})")
         else:
+            # Create new file in the specified folder
             metadata = {"name": EXCEL_FILE, "parents": [folder_id]}
             uploaded = (
                 service.files()
                 .create(body=metadata, media_body=media, fields="id", supportsAllDrives=True)
                 .execute()
-            
             )
             print(f"  OK Drive: uploaded new file (id={uploaded.get('id')})")
 
