@@ -1,0 +1,49 @@
+name: FX Insights daily run
+
+on:
+  schedule:
+    # Runs at 22:15 UTC = 03:45 NPT (after FX/Gold/Oil NY close in winter)
+    # Change to 21:15 UTC during US summer (DST active, March–October)
+    - cron: "15 22 * * 1-5"   # weekdays only (Mon–Fri)
+  workflow_dispatch: {}        # lets you trigger manually from the Actions tab
+
+concurrency:
+  group: fx-insights
+  cancel-in-progress: false    # never interrupt a run mid-way
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Cache the Excel file between runs so history accumulates
+      - name: Restore Excel workbook
+        uses: actions/cache@v4
+        with:
+          path: Forex_Insights.xlsx
+          key: forex-insights-xlsx-${{ github.run_id }}
+          restore-keys: |
+            forex-insights-xlsx-
+
+      - name: Run market data script
+        env:
+          SLACK_WEBHOOK_URL:            ${{ secrets.SLACK_WEBHOOK_URL }}
+          GOOGLE_SERVICE_ACCOUNT_JSON:  ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_DRIVE_FOLDER_ID:       ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+        run: python -m reddit_monitor.main --once
+        # Replace the line above with the correct module path for your project, e.g.:
+        # run: python main_script.py
