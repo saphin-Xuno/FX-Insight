@@ -44,6 +44,5 @@ jobs:
           SLACK_WEBHOOK_URL:            ${{ secrets.SLACK_WEBHOOK_URL }}
           GOOGLE_SERVICE_ACCOUNT_JSON:  ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           GOOGLE_DRIVE_FOLDER_ID:       ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
-        run: python -m reddit_monitor.main --once
-        # Replace the line above with the correct module path for your project, e.g.:
-        # run: python main_script.py
+        run: python main_script.py
+        
