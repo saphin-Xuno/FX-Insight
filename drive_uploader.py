@@ -8,8 +8,12 @@ Requires:
 
 Set these in GitHub repo secrets:
     GOOGLE_SERVICE_ACCOUNT_JSON  — full JSON content of the service account key
-    GOOGLE_DRIVE_FOLDER_ID       — ID of the Drive folder to upload into
+    GOOGLE_DRIVE_FOLDER_ID       — ID of the Shared Drive folder to upload into
                                    (get it from the folder URL: .../folders/<ID>)
+
+NOTE: This uploads into a Shared Drive (not a regular "My Drive" folder),
+since service accounts have no storage quota of their own and cannot
+write into personal My Drive folders.
 """
 
 import json
@@ -43,7 +47,16 @@ def _find_existing_file(service, folder_id: str) -> str | None:
         f"'{folder_id}' in parents and "
         f"trashed=false"
     )
-    results = service.files().list(q=query, fields="files(id, name)").execute()
+    results = (
+        service.files()
+        .list(
+            q=query,
+            fields="files(id, name)",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+        )
+        .execute()
+    )
     files = results.get("files", [])
     return files[0]["id"] if files else None
 
@@ -79,7 +92,12 @@ def upload_to_drive() -> None:
             metadata = {"name": EXCEL_FILE, "parents": [folder_id]}
             uploaded = (
                 service.files()
-                .create(body=metadata, media_body=media, fields="id", supportsAllDrives=True)
+                .create(
+                    body=metadata,
+                    media_body=media,
+                    fields="id",
+                    supportsAllDrives=True,
+                )
                 .execute()
             )
             print(f"  OK Drive: uploaded new file (id={uploaded.get('id')})")
