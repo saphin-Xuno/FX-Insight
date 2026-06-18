@@ -7,7 +7,7 @@ Import and call send_slack_summary(state) from the run() function.
 import json
 import os
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import datetime
 
 
 def _arrow(change: float | None) -> str:
@@ -22,15 +22,6 @@ def _price(value: float | None, decimals: int = 2) -> str:
     if value is None:
         return "N/A"
     return f"{value:,.{decimals}f}"
-
-
-def _weekday(date_str: str) -> str:
-    """Return 'Monday', 'Tuesday' etc. from a YYYY-MM-DD string."""
-    try:
-        dt = datetime.strptime(date_str, "%Y-%m-%d")
-        return dt.strftime("%A")
-    except ValueError:
-        return ""
 
 
 def _format_date_label(date_str: str) -> str:
@@ -51,26 +42,11 @@ def build_slack_message(state) -> str:
 
     npr = market.get("USDNPR")
     npr_open = _price(npr["open"] if npr else None)
-    # FIX: use prev_close (yesterday's actual close) instead of close
-    # (which was today's close, mislabeled as yesterday's).
-    npr_close = _price(npr["prev_close"] if npr else None)
+    npr_close = _price(npr["close"] if npr else None)
     npr_date = npr["date"] if npr else ""
-    # FIX: change % now reflects the actual move from yesterday's close
-    # to today's open, matching what the Opening/Closing labels claim.
-    npr_change = _arrow(
-        (npr["open"] - npr["prev_close"]) / npr["prev_close"]
-        if npr and npr.get("prev_close")
-        else None
-    )
+    npr_change = _arrow((npr["close"] - npr["open"]) / npr["open"] if npr else None)
 
-    # Previous day label: one business day before current date
-    try:
-        current_dt = datetime.strptime(npr_date, "%Y-%m-%d")
-        prev_dt = current_dt - timedelta(days=3 if current_dt.weekday() == 0 else 1)
-        prev_label = _format_date_label(prev_dt.strftime("%Y-%m-%d"))
-    except ValueError:
-        prev_label = "previous session"
-
+    # Both Opening and Closing refer to the same trading day - no weekend skip
     current_label = _format_date_label(npr_date)
 
     gold = market.get("XAUUSD")
@@ -96,7 +72,7 @@ def build_slack_message(state) -> str:
     lines = [
         f"*FX Insights (USD/NPR):*",
         f"Opening {current_label}: NPR {npr_open}",
-        f"Closing {prev_label}: NPR {npr_close}",
+        f"Closing {current_label}: NPR {npr_close}",
         f"Percentage Change in Price: {npr_change}",
         "",
         "*Commodity Market Movement:*",
