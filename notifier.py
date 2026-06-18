@@ -51,9 +51,17 @@ def build_slack_message(state) -> str:
 
     npr = market.get("USDNPR")
     npr_open = _price(npr["open"] if npr else None)
-    npr_close = _price(npr["close"] if npr else None)
+    # FIX: use prev_close (yesterday's actual close) instead of close
+    # (which was today's close, mislabeled as yesterday's).
+    npr_close = _price(npr["prev_close"] if npr else None)
     npr_date = npr["date"] if npr else ""
-    npr_change = _arrow((npr["close"] - npr["open"]) / npr["open"] if npr else None)
+    # FIX: change % now reflects the actual move from yesterday's close
+    # to today's open, matching what the Opening/Closing labels claim.
+    npr_change = _arrow(
+        (npr["open"] - npr["prev_close"]) / npr["prev_close"]
+        if npr and npr.get("prev_close")
+        else None
+    )
 
     # Previous day label: one business day before current date
     try:
