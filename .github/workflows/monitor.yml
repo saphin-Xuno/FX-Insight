@@ -2,9 +2,13 @@ name: FX Insights daily run
 
 on:
   schedule:
-    # Runs at 22:15 UTC = 03:45 NPT (after FX/Gold/Oil NY close in winter)
-    # Change to 21:15 UTC during US summer (DST active, March–October)
-    - cron: "15 22 * * 1-5"   # weekdays only (Mon–Fri)
+    # Runs at 08:15 UTC = 14:00 NPT, once per trading day.
+    # Nepal has no DST, so this stays at 2pm NPT all year - no summer/winter
+    # switch is needed (the old 22:15 UTC slot did need one).
+    # Tue-Sat, not Mon-Fri: at 2pm NPT the most recent completed session is the
+    # PREVIOUS day's, so Tuesday reports Monday and Saturday reports Friday.
+    # Running Monday would re-fetch Friday and append a duplicate row.
+    - cron: "15 8 * * 2-6"
   workflow_dispatch: {}        # lets you trigger manually from the Actions tab
 
 concurrency:
