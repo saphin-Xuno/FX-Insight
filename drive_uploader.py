@@ -16,6 +16,7 @@ since service accounts have no storage quota of their own and cannot
 write into personal My Drive folders.
 """
 
+import io
 import json
 import os
 
@@ -59,6 +60,62 @@ def _find_existing_file(service, folder_id: str) -> str | None:
     )
     files = results.get("files", [])
     return files[0]["id"] if files else None
+
+
+def download_from_drive() -> bool:
+    """Restore Forex_Insights.xlsx from Drive so history survives cache loss.
+
+    The GitHub Actions cache is disposable: when it is evicted the workflow
+    falls back to the 1-row seed file committed in the repo and every previous
+    day is lost on the next upload (this is what wiped 3 Jul - 17 Aug 2026).
+    Reading the file back from Drive first makes Drive the source of truth, so
+    the row history keeps growing no matter what happens to the cache.
+
+    Returns True when the local file was replaced with the Drive copy.
+    """
+    folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
+    if not folder_id:
+        print("  SKIP Drive download: GOOGLE_DRIVE_FOLDER_ID not set")
+        return False
+
+    try:
+        from googleapiclient.http import MediaIoBaseDownload
+
+        service = _build_drive_service()
+        existing_id = _find_existing_file(service, folder_id)
+        if not existing_id:
+            print("  Drive: no existing file yet - keeping local copy")
+            return False
+
+        request = service.files().get_media(
+            fileId=existing_id, supportsAllDrives=True
+        )
+        buffer = io.BytesIO()
+        downloader = MediaIoBaseDownload(buffer, request)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+        data = buffer.getvalue()
+
+        # History only ever grows, so a Drive copy smaller than what we already
+        # hold locally means the remote file was reset or truncated. Keep the
+        # bigger file rather than silently adopting the shorter one.
+        local_size = os.path.getsize(EXCEL_FILE) if os.path.exists(EXCEL_FILE) else 0
+        if local_size and len(data) < local_size:
+            print(
+                f"  WARN Drive copy is smaller than local "
+                f"({len(data)} < {local_size} bytes) - keeping local copy"
+            )
+            return False
+
+        with open(EXCEL_FILE, "wb") as handle:
+            handle.write(data)
+        print(f"  OK Drive: restored {EXCEL_FILE} from Drive ({len(data)} bytes)")
+        return True
+
+    except Exception as exc:
+        print(f"  WARN Drive download failed: {exc}")
+        return False
 
 
 def upload_to_drive() -> None:

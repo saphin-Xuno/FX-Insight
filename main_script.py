@@ -16,7 +16,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.worksheet.worksheet import Worksheet
 from notifier import send_slack_summary
-from drive_uploader import upload_to_drive
+from drive_uploader import download_from_drive, upload_to_drive
 
 EXCEL_FILE = "Forex_Insights.xlsx"
 US_SHEET = "US_Indices"
@@ -969,6 +969,9 @@ def run() -> None:
         close_t = info[f"close_{season}"]
         print(f"  {market:6s}  open {open_t:8s}  close {close_t:8s} NPT  {info['note']}")
     print()
+    # Pull the accumulated history down from Drive before appending, so a
+    # missing Actions cache can never reset the workbook to the seed file.
+    download_from_drive()
     print(f"Opening: {EXCEL_FILE}")
     workbook = load_workbook_file()
     if workbook is None:
