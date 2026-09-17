@@ -1,15 +1,16 @@
 name: FX Insights daily run
 
 on:
-  schedule:
-    # Runs at 08:15 UTC = 14:00 NPT, once per trading day.
-    # Nepal has no DST, so this stays at 2pm NPT all year - no summer/winter
-    # switch is needed (the old 22:15 UTC slot did need one).
-    # Tue-Sat, not Mon-Fri: at 2pm NPT the most recent completed session is the
-    # PREVIOUS day's, so Tuesday reports Monday and Saturday reports Friday.
-    # Running Monday would re-fetch Friday and append a duplicate row.
-    - cron: "15 8 * * 2-6"
-  workflow_dispatch: {}        # lets you trigger manually from the Actions tab
+  # No schedule. Saphin runs this manually from the Actions tab (or with
+  # `gh workflow run`) when the daily report is about to go out, which is the
+  # only moment the data is needed. Removed 2026-09-17: the 08:15 UTC slot was
+  # queueing badly on GitHub's free runners - one run landed 5h13m late and the
+  # next never fired at all.
+  #
+  # NOTE: the script only ever fetches the LAST COMPLETED SESSION, so a day
+  # nobody triggers it is a permanent hole in the workbook. This is how
+  # 3 Jul - 1 Sep 2026 was lost.
+  workflow_dispatch: {}
 
 concurrency:
   group: fx-insights
